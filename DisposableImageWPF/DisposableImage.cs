@@ -18,7 +18,6 @@ namespace DisposableImageWPF
     {
         
         private Stream _mediaStream;
-        private Stream _previewStream;
         private BitmapImage _source;
         private ImageSource _preview;
 
@@ -95,30 +94,30 @@ namespace DisposableImageWPF
         {
             if (path == null) return;
             
-            _previewStream = path.Contains("pack://application:,,,") ? Application.GetResourceStream(new Uri(path))?.Stream : File.OpenRead(path);
+            _mediaStream = path.Contains("pack://application:,,,") ? Application.GetResourceStream(new Uri(path))?.Stream : File.OpenRead(path);
 
-            using (var img = Image.FromStream(_previewStream!))
-            {
-                using (var preview = new Bitmap(img, new Size(pWidth, pHeight)))
-                {
-                    Preview = (BitmapSource)Imaging.CreateBitmapSourceFromHBitmap(
-                        preview.GetHbitmap(),
-                        IntPtr.Zero,
-                        Int32Rect.Empty,
-                        BitmapSizeOptions.FromEmptyOptions());
-                }
-            }
+            ConverPreview(pWidth, pHeight);
             
             var bitmap = new BitmapImage();
             
-            _mediaStream = path.Contains("pack://application:,,,") ? Application.GetResourceStream(new Uri(path))?.Stream : File.OpenRead(path);
-
+            _mediaStream!.Seek(0, SeekOrigin.Begin);
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.None;
             bitmap.StreamSource = _mediaStream;
             bitmap.EndInit();
             bitmap.Freeze();
             Source = bitmap;
+        }
+
+        private void ConverPreview(int pWidth, int pHeight)
+        {
+            using var img = Image.FromStream(_mediaStream!);
+            using var preview = new Bitmap(img, new Size(pWidth, pHeight));
+            Preview = (BitmapSource)Imaging.CreateBitmapSourceFromHBitmap(
+                preview.GetHbitmap(),
+                IntPtr.Zero,
+                Int32Rect.Empty,
+                BitmapSizeOptions.FromEmptyOptions());
         }
         
         
@@ -133,10 +132,7 @@ namespace DisposableImageWPF
             Preview = null;
             _mediaStream.Close();
             _mediaStream.Dispose();
-            _previewStream?.Close();
-            _previewStream?.Dispose();
             _mediaStream = null;
-            _previewStream = null;
 
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
         }
